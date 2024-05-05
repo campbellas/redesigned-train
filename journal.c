@@ -1,36 +1,39 @@
 #include <stdio.h>
-#include <ctype.h>
+#include <stdbool.h>
 
-/*
-NOTES
-*I am still struggling to find a way to validate dates upon input. 
-*I will have to save that task for when I improve
-*04/20/2024 Validating the dates were simpler than expected. Theres
-still some degree of trust that the user can be reasonable about dates
-But at least now it can tell that years should be four elements long,
-months should be one or two elements long but not above 12 in value, and days should
-be one or two elements long but never above 31 in value.
 
-Less than 200 lines!
-*/
-
-int exists(char *target) {
+bool fileExistsAndReadable(char *filepath) {	//Checks if a file exists and is readable. If it exists, return true. If it does not, return false.
 	FILE *checkExists;
 	
-	checkExists = fopen(target, "r");
+	checkExists = fopen(filepath, "r");
 	if(checkExists == NULL){
-		return 0;
+		return false;
 	}
 	else {
 		fclose(checkExists);
-		return 1;
+		return true;
 	}
 }
 
+bool fileExistsAndReadable2(FILE** filepointer) {
+	if(filepointer == NULL) return false;
+	else return true;
+}
 int numPlaces(int n) {//Recursive
 	if (n < 0) return 0;
 	else if (n < 10) return 1; //Single digits are proceeded with a zero. 2 is min
 	return 1 + numPlaces(n / 10);
+}
+
+int countDigit(int n) {
+	if (n == 0) return 1;
+	int count = 0;
+	
+	while(n != 0) {
+		n = n/10;
+		count++;
+	}
+	return count;
 }
 
 void clearBuffer() {
@@ -38,17 +41,14 @@ void clearBuffer() {
 	while((c = getchar()) != '\n' && c != EOF){};
 }
 
-void writeIt(char *pathway) {
-	FILE *fjournal;
+void writeIt(FILE** filepathway) {
 	char newEntry[2048];
-	fjournal = fopen(pathway, "w");
 	
-	scanf(" %2048[^\n]", newEntry);//This is COOOOOOL. Its basically a custom formatter that reads up to 2048 characters
+	
+	scanf(" %2047[^\n]", newEntry);//READ UP TO 2047 TO BECAUSE ARRAYS START AT 0 AND TO PREVENT LEAKING DATA
 	clearBuffer();
 	printf(newEntry);
-	fprintf(fjournal, newEntry);
-	
-	fclose(fjournal);
+	fprintf(*filepathway, newEntry);
 	
 }
 
@@ -58,51 +58,54 @@ void journalWrite() {
 	int day = 0;
 	int process = 1;
 	int overwriteChoice;
-	
+	FILE *queryfile;
 	
 	do{
 		printf("Year[XXXX]:\n");
 		scanf("%d", &year);
 		clearBuffer();
-	}while(numPlaces(year) != 4);
+	}while(countDigit(year) != 4);
+	
 	do{
 		printf("\nMonth[XX]:\n");
 		scanf("%d", &month);
 		clearBuffer();
-	}while((numPlaces(month) != 1 && numPlaces(month) != 2) || month > 12); //Two conditions satisfy this one
+	}while((countDigit(month) != 1 && countDigit(month) != 2) || month > 12); //Two conditions satisfy this one
+	
 	do{
 		printf("\nDay[XX]:\n");
 		scanf("%d", &day);
 		clearBuffer();
-	}while((numPlaces(day) != 1 && numPlaces(day) != 2) || day > 31); //Two conditions satisfy this one	
-	
+	}while((countDigit(day) != 1 && countDigit(day) != 2) || day > 31); //Two conditions satisfy this one	
 	
 	char target[30];
 	
 	sprintf(target, "C:\\Journal\\%d%02d%02d.txt", year, month, day);
-	//printf(target); //Checks target
-	if(exists(target) == 0){//The file does not exist so make it and lets write in it
-		writeIt(target);
+	queryfile = fopen(target, "r+");
+	
+	if(fileExistsAndReadable2(&queryfile) == false) {
+		queryfile = freopen(target, "w", queryfile);
+		writeIt(&queryfile);
+		fclose(queryfile);
 	}
-	else {//The file does exist so lets make sure we want to overwrite it
-		while(process == 1){
+	
+	else {
+		while(process == 1) {
 			printf("A file already exists for this date. Overwrite? [1 for yes/0 for no]: \n");
 			scanf("%d", &overwriteChoice);
 			clearBuffer();
-			if (overwriteChoice == 1){//WRITE FILE
+			if(overwriteChoice == 1) {
 				process = 0;
-				writeIt(target);
-				//write the file
+				queryfile = freopen(target, "w", queryfile);
+				writeIt(&queryfile);
+				fclose(queryfile);
+			
 			}
-			else if (overwriteChoice == 0){//DEFAULT: DO NOT WRITE FILE
+			else if(overwriteChoice == 0) {
 				process = 0;
 				printf("\nThe file was NOT overwritten\n");
+				fclose(queryfile);
 			}
-			else {
-				printf("\nERROR THAT WAS NOT A CHOICE\n");
-			}
-			
-			
 		}
 	}
 }
@@ -121,17 +124,19 @@ void journalRead() {//READ JOURNAL ENTRIES IF THEY EXIST. ELSE TELL USER NO.
 			printf("Year[XXXX]:\n");
 			scanf("%d", &year);
 			clearBuffer();
-		}while(numPlaces(year) != 4);
+		}while(countDigit(year) != 4);
+		
 		do{
 			printf("\nMonth[XX]:\n");
 			scanf("%d", &month);
 			clearBuffer();
-		}while(numPlaces(month) != 1 && numPlaces(month) != 2); //Two conditions satisfy this one
+		}while(countDigit(month) != 1 && countDigit(month) != 2); //Two conditions satisfy this one
+		
 		do{
 			printf("\nDay[XX]:\n");
 			scanf("%d", &day);
 			clearBuffer();
-		}while(numPlaces(day) != 1 && numPlaces(day) != 2); //Two conditions satisfy this one
+		}while(countDigit(day) != 1 && countDigit(day) != 2); //Two conditions satisfy this one
 		
 		char target[30]; //Was 25 if that matters
 		
@@ -145,6 +150,7 @@ void journalRead() {//READ JOURNAL ENTRIES IF THEY EXIST. ELSE TELL USER NO.
 			printf("\nError! Entry not found!\n");
 			process = 0;
 		}
+		
 		else {
 			char entry = fgetc(fjournal);
 			while(entry != EOF) {
@@ -164,32 +170,30 @@ void journalRead() {//READ JOURNAL ENTRIES IF THEY EXIST. ELSE TELL USER NO.
 
 int main() {
 	int selector = 1;
-	int command;
+	int command = 0;
 	
 	
 	while(selector == 1) {
-		printf("OPTIONS: EXIT[0], READ[1] or WRITE[2]\n");
+		printf("\n\nOPTIONS: EXIT[0], READ[1] or WRITE[2]\n");
 		scanf("%d", &command);
 		clearBuffer();
 		
 		
 		if(command == 1) {
 			journalRead();
-			selector = 0;
+			command = 3;
 		}
 		else if(command == 2) {
 			journalWrite();
-			selector = 0;
+			command = 3;
 		}
 		else if(command == 0) {
-			break;
+			selector = 0;
 		}
 			
 		else{
 			printf("ERROR: ENTER A 1 OR A 2\n");
 		}
 	}
-	
-	
 	return 0;
 }
